@@ -1,0 +1,83 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaMirrorMaker2
+metadata:
+  name: mm-2-source-target
+  namespace: kafka-cluster-1
+spec:
+  version: 3.4.0
+  replicas: 1
+  connectCluster: "my-target-cluster"
+  clusters:
+  - alias: "my-source-cluster"
+    bootstrapServers: source-kafka-kafka-bootstrap:9092
+  - alias: "my-target-cluster"
+    bootstrapServers: target-kafka-bootstrap.eng.cybereason.net:443
+    config:
+      config.storage.replication.factor: -1
+      offset.storage.replication.factor: -1 
+      status.storage.replication.factor: -1
+    tls:
+      trustedCertificates:
+      - certificate: tls.crt
+        secretName: ca-tls
+  mirrors:
+  - sourceCluster: "my-source-cluster"
+    targetCluster: "my-target-cluster"
+    sourceConnector:
+      config:
+        replication.factor: 1
+        offset-syncs.topic.replication.factor: 1
+        sync.topic.acls.enabled: "false"
+        refresh.topics.interval.seconds: 30
+        replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+    heartbeatConnector:
+      config:
+        heartbeats.topic.replication.factor: 1
+    checkpointConnector:
+      config:
+        checkpoints.topic.replication.factor: 1
+        replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+    topicsPattern: "test-a-.*"
+
+---
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaMirrorMaker2
+metadata:
+  name: mm-2-target-source
+  namespace: kafka-cluster-1
+spec:
+  version: 3.4.0
+  replicas: 1
+  connectCluster: "my-source-cluster"
+  clusters:
+  - alias: "my-source-cluster"
+    bootstrapServers: source-kafka-kafka-bootstrap:9092
+  - alias: "my-target-cluster"
+    bootstrapServers: target-kafka-bootstrap.eng.cybereason.net:443
+    config:
+      config.storage.replication.factor: -1
+      offset.storage.replication.factor: -1 
+      status.storage.replication.factor: -1
+    tls:
+      trustedCertificates:
+      - certificate: tls.crt
+        secretName: ca-tls
+  mirrors:
+  - sourceCluster: "my-target-cluster"
+    targetCluster: "my-source-cluster"
+    sourceConnector:
+      config:
+        replication.factor: 1
+        offset-syncs.topic.replication.factor: 1
+        sync.topic.acls.enabled: "false"
+        refresh.topics.interval.seconds: 30
+        replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+    heartbeatConnector:
+      config:
+        heartbeats.topic.replication.factor: 1
+    checkpointConnector:
+      config:
+        checkpoints.topic.replication.factor: 1
+        replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+    topicsPattern: "test-b-.*"

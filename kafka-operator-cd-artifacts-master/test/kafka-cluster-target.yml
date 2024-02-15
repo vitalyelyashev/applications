@@ -1,0 +1,342 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: target-kafka
+  namespace: kafka-cluster-2
+spec:
+  kafka:
+    version: 3.4.0
+    replicas: 3
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: "1"
+      limits:
+        memory: 2Gi
+        cpu: "1"
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: istio
+        port: 9096
+        type: cluster-ip
+        tls: false
+        configuration:
+          brokers:
+          - broker: 0
+            advertisedHost: first-target-kafka.eng.cybereason.net
+            advertisedPort: 443
+          - broker: 1
+            advertisedHost: second-target-kafka.eng.cybereason.net
+            advertisedPort: 443
+          - broker: 2
+            advertisedHost: third-target-kafka.eng.cybereason.net
+            advertisedPort: 443
+    template:
+      pod:
+        metadata:
+          labels:
+            app: kafka-broker
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      inter.broker.protocol.version: "3.4"
+    storage:
+      type: jbod
+      volumes:
+      - id: 0
+        type: persistent-claim
+        size: 10Gi
+        deleteClaim: true
+    template:
+      pod:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "Kafka"
+            effect: "NoSchedule"
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: dedicated
+                  operator: In
+                  values:
+                  - Kafka
+  zookeeper:
+    replicas: 1
+    jvmOptions:
+      -Xms: 512m
+      -Xmx: 512m
+      javaSystemProperties:
+        - name: zookeeper.ssl.hostnameVerification
+          value: "false"
+        - name: zookeeper.ssl.quorum.hostnameVerification
+          value: "false"
+    config:
+      autopurge.purgeInterval: 1
+      syncLimit: 10
+      quorumListenOnAllIPs: true
+      tls: false
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: "1"
+      limits:
+        memory: 2Gi
+        cpu: "1"
+    storage:
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: true
+    livenessProbe:
+      initialDelaySeconds: 60
+      periodSeconds: 15
+      timeoutSeconds: 15
+      failureThreshold: 5
+    template:
+      pod:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "Kafka"
+            effect: "NoSchedule"
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: dedicated
+                  operator: In
+                  values:
+                  - Kafka
+  entityOperator: 
+    topicOperator:
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: "256m"
+        limits:
+          memory: 512Mi
+          cpu: "256m"
+    userOperator:
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: "256m"
+        limits:
+          memory: 512Mi
+          cpu: "256m"
+
+---
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: mm-1
+  namespace: kafka-cluster-2
+  labels:
+    strimzi.io/cluster: target-kafka
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 7200000
+    segment.bytes: 1073741824
+
+################################### Istio Routing resources ##################################
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: kafka-gateway
+  namespace: kafka-cluster-2
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - "first-target-kafka.eng.cybereason.net"
+    port:
+      name: target-kafka-0
+      number: 443
+      protocol: TLS
+    tls:
+      mode: SIMPLE
+      credentialName: ca-tls
+  - hosts:
+    - "second-target-kafka.eng.cybereason.net"
+    port:
+      name: target-kafka-1
+      number: 443
+      protocol: TLS
+    tls:
+      mode: SIMPLE
+      credentialName: ca-tls
+  - hosts:
+    - "third-target-kafka.eng.cybereason.net"
+    port:
+      name: target-kafka-2
+      number: 443
+      protocol: TLS
+    tls:
+      mode: SIMPLE
+      credentialName: ca-tls
+  - hosts:
+    - "target-kafka-bootstrap.eng.cybereason.net"
+    port:
+      name: target-kafka-bootstrap
+      number: 443
+      protocol: TLS
+    tls:
+      mode: SIMPLE
+      credentialName: ca-tls
+
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: target-kafka-0
+  namespace: kafka-cluster-2
+spec:
+  hosts:
+  - "first-target-kafka.eng.cybereason.net"
+  gateways:
+  - kafka-gateway
+  tcp:
+  - route:
+    - destination:
+        host: target-kafka-kafka-istio-0.kafka-cluster-2.svc.cluster.local
+        port:
+          number: 9096
+    match:
+    - port: 443
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: target-kafka-1
+  namespace: kafka-cluster-2
+spec:
+  hosts:
+  - "second-target-kafka.eng.cybereason.net"
+  gateways:
+  - kafka-gateway
+  tcp:
+  - route:
+    - destination:
+        host: target-kafka-kafka-istio-1.kafka-cluster-2.svc.cluster.local
+        port:
+          number: 9096
+    match:
+    - port: 443
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: target-kafka-2
+  namespace: kafka-cluster-2
+spec:
+  hosts:
+  - "third-target-kafka.eng.cybereason.net"
+  gateways:
+  - kafka-gateway
+  tcp:
+  - route:
+    - destination:
+        host: target-kafka-kafka-istio-2.kafka-cluster-2.svc.cluster.local
+        port:
+          number: 9096
+    match:
+    - port: 443
+
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: target-kafka-bootstrap
+  namespace: kafka-cluster-2
+spec:
+  hosts:
+  - "target-kafka-bootstrap.eng.cybereason.net"
+  gateways:
+  - kafka-gateway
+  tcp:
+  - route:
+    - destination:
+        host: target-kafka-kafka-istio-bootstrap.kafka-cluster-2.svc.cluster.local
+        port:
+          number: 9096
+    match:
+    - port: 443
+
+
+# To deploy AKHQ server in the same NS as kafka cluster use the following command and official AKHQ helm chart
+# helm repo add akhq https://akhq.io/
+# helm upgrade --install akhq akhq/akhq --namespace kafka-cluster-2 --version 0.24.0 --set secrets.akhq.connections.my-cluster-plain-text.properties.bootstrap.servers="target-kafka-kafka-bootstrap:9092"
+
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: public-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - akhq-istio-poc.eng.cybereason.net
+    port:
+      name: https
+      number: 443
+      protocol: HTTPS
+    tls:
+      credentialName: ca-tls
+      mode: SIMPLE
+
+---
+
+# VirtualService for AKHQ server
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: akhq
+  namespace: istio-system
+spec:
+  gateways:
+  - public-gateway
+  hosts:
+  - akhq-istio-poc.eng.cybereason.net
+  http:
+  - match:
+     - uri:
+        prefix: "/ui"
+    route:
+    - destination:
+        host: akhq.kafka-cluster-2.svc.cluster.local
+        port:
+          number: 80
+  - route:
+    - destination:
+        host: akhq.kafka-cluster-2.svc.cluster.local
+        port:
+          number: 80
