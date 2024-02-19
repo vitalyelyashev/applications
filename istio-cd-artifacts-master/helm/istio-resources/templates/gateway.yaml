@@ -1,0 +1,28 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: grpc-gateway
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+  - hosts:
+    {{- range .Values.gateway.host }}
+    - {{ . | quote}}
+    {{- end }}
+    port:
+      name: https
+      number: 443
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: {{ .Values.gateway.credentialName }}
+  {{- if .Values.gateway.grpc.enabled }}
+  - hosts:
+    - '*'
+    port:
+      number: 80
+      name: grpc-wildcard
+      protocol: GRPC
+  {{ end }}

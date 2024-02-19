@@ -1,0 +1,78 @@
+metadata:
+  name: kiali
+  namespace: istio-system
+
+# Deployment options for the operator pod.
+deployment:
+  image_name: quay.io/kiali/kiali
+  image_version: v1.65.0
+  hpa:
+    api_version: "autoscaling/v2"
+    maxReplicas: 2
+    minReplicas: 1
+    metrics:
+      resource_cpu:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+  ingress_enabled:
+    class_name: "nginx"
+  instance_name: "kiali"
+  logger:
+    log_format: "text"
+    log_level: "info"
+    time_field_format: "2006-01-02T15:04:05Z07:00"
+    sampler_rate: "1"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 368Mi
+    limits:
+      cpu: 200m
+      memory: 1Gi
+  secret_name: "kiali"
+
+auth:
+  strategy: "openid"
+  openid: 
+    client_id: "0oaloghxgqbyffuBx357"
+    disable_rbac: true
+    issuer_uri: "https://cybereason.okta.com"
+
+
+external_services:
+  prometheus:
+    url: "http://prometheus-kube-prometheus-prometheus.prometheus:9090/"
+  custom_dashboards:
+    enabled: true
+  istio:
+    root_namespace: ""
+
+kiali_feature_flags:
+  certificates_information_indicators:
+    enabled: true
+    secrets:
+    - cacerts
+    - istio-ca-secret
+  clustering:
+    enabled: true
+  disabled_features: []
+  validations:
+    ignore: ["KIA1201"]
+
+server:
+  port: 20001
+  observability:
+    metrics:
+      enabled: true
+      port: 9090
+  web_root: /kiali
+  web_schema: https
+  web_port: 443
+  web_fqdn: rest-private.eng.cybereason.net
+
+VirtualService:
+  port_number: 20001
+  host: ""
+  weight: 100

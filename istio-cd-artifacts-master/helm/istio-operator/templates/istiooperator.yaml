@@ -1,0 +1,123 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: istio-controlplane
+spec:
+  profile: default
+  hub: {{ .Values.image.repository }}
+  tag: {{ .Values.image.tag}}
+  values:
+    telemetry:
+      enabled: true
+      v2:
+        enabled: false
+  meshConfig:
+    enableTracing: true
+    defaultConfig:
+      extraStatTags:
+      - tenant_name
+      - path
+      - pylum_id
+      proxyMetadata: {}
+    enablePrometheusMerge: true
+    accessLogFile: "/dev/stdout"
+    accessLogEncoding: JSON
+    accessLogFormat: |
+      {
+        "start_time": "%START_TIME%",
+        "method": "%REQ(:METHOD)%",
+        "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+        "protocol": "%PROTOCOL%",
+        "tenantId": "%REQ(tenantName)%", 
+        "pylumId": "%REQ(pylumId)%",
+        "traceId": "%REQ(X-B3-TraceId)%", 
+        "usermail": "%REQ(usermail)%",
+        "username":  "%REQ(username)%", 
+        "spanId": "%REQ(X-B3-SpanId)%",
+        "parentSpanId": "%REQ(X-B3-ParentSpanId)%",
+        "response_code": "%RESPONSE_CODE%",
+        "response_flags": "%RESPONSE_FLAGS%",
+        "grpc_status_number": "%GRPC_STATUS_NUMBER%",
+        "grpc_status": "%GRPC_STATUS%",
+        "bytes_received": "%BYTES_RECEIVED%",
+        "bytes_sent": "%BYTES_SENT%",
+        "duration": "%DURATION%",
+        "upstream_service_time": "%REQ(X-ENVOY-UPSTREAM_SERVICE_TIME)%",
+        "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%",
+        "user_agent": "%REQ(USER-AGENT)%",
+        "request_id": "%REQ(X-REQUEST-ID)%",
+        "authority": "%REQ(:AUTHORITY)%",
+        "upstream_host": "%UPSTREAM_HOST%"
+      }
+  components:
+    base:
+      enabled: true   
+    pilot:
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory:  {{ .Values.resources.limits.memory }}
+        hpaSpec:
+          maxReplicas: {{ .Values.hpaSpec.PilotmaxReplicas }}
+          minReplicas: {{ .Values.hpaSpec.PilotminReplicas }}
+          metrics:
+          - resource:
+              name: cpu
+              target:
+                averageUtilization: {{ .Values.hpaSpec.metrics.resource.AverageUtilization }}
+                type: Utilization
+            type: Resource
+          - resource:
+              name: memory
+              target:
+                averageUtilization: {{ .Values.hpaSpec.metrics.resource.MemoryAverageUtilization }}
+                type: Utilization
+            type: Resource
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory:  {{ .Values.resources.limits.memory }}
+        hpaSpec:
+          maxReplicas: {{ .Values.hpaSpec.GWmaxReplicas }}
+          minReplicas: {{ .Values.hpaSpec.GWminReplicas }}
+          metrics:
+          - resource:
+              name: cpu
+              target:
+                averageUtilization: {{ .Values.hpaSpec.metrics.resource.AverageUtilization }}
+                type: Utilization
+            type: Resource
+          - resource:
+              name: memory
+              target:
+                averageValue: {{ .Values.hpaSpec.metrics.resource.MemoryAverageUtilization }}
+                type: Utilization
+            type: Resource
+    - name: istio-ingressgateway-private
+      enabled: true
+      label:
+        istio: ingressgateway-private
+        app: ingressgateway-private
+      k8s:
+        hpaSpec:
+          maxReplicas: {{ .Values.hpaSpec.GWPrivatemaxReplicas }}
+          minReplicas: {{ .Values.hpaSpec.GWPrivateminReplicas }}
+        serviceAnnotations:
+          networking.gke.io/load-balancer-type: Internal
+          networking.gke.io/internal-load-balancer-allow-global-access: "true"
+    egressGateways:
+      - name: istio-egressgateway
+        enabled: false

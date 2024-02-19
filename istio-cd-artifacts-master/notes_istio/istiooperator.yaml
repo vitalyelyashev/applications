@@ -1,0 +1,62 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istio-controlplane
+spec:
+  profile: default
+  hub: docker.io/istio
+  tag: 1.14.3
+  meshConfig:
+    enableTracing: true
+    defaultConfig:
+      proxyMetadata: {}
+    enablePrometheusMerge: true
+    accessLogFile: "/dev/stdout"
+    accessLogFormat: |
+      %START_TIME% "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" traceId %REQ(X-B3-TraceId)% SpanId %REQ(X-B3-SpanId)% parentSpanId %REQ(X-B3-ParentSpanId)% %RESPONSE_CODE% %RESPONSE_FLAGS% %GRPC_STATUS_NUMBER% %GRPC_STATUS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+  components:
+    base:
+      enabled: true   
+    cni:
+      enabled: false
+    pilot:
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 1000m # default 500m
+            memory: 2048Mi # default 2048Mi
+          limits:
+            cpu: 2000m
+            memory:  2500Mi
+        hpaSpec:
+          maxReplicas: 10 # default 5
+          minReplicas: 1 # default 1
+          metrics:
+          - resource:
+              name: cpu
+              targetAverageUtilization:  150
+            type: Resource
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 1000m # default 500m
+            memory: 2048Mi # default 2048Mi
+          limits:
+            cpu: 2000m
+            memory:  2500Mi
+        hpaSpec:
+          maxReplicas: 10 # default 5
+          minReplicas: 1 # default 1
+          metrics:
+          - resource:
+              name: cpu
+              targetAverageUtilization:  150
+            type: Resource
+    egressGateways:
+      - name: istio-egressgateway
+        enabled: false

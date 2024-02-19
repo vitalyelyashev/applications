@@ -1,0 +1,32 @@
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: {{ .Values.telemetry.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  metrics:
+  - overrides:
+    {{- range $metrics_tags := .Values.telemetry.metrics_tags }}
+    - disabled: false
+      match:
+        metric: {{ $metrics_tags.name }}
+        mode: {{ $metrics_tags.mode }}
+      tagOverrides:
+        path:
+          value: request.path
+        tenant_name:
+          value: request.headers.tenantName
+    {{- end }}
+    {{- range $metrics := .Values.telemetry.metrics_disable }}
+    - disabled: true
+      match:
+        metric: {{ $metrics.name }}
+        mode: {{ $metrics.mode }}
+    {{- end }}
+    providers:
+    - name: prometheus
+  accessLogging:
+    - providers:
+      - name: envoy
+      filter:
+        expression: "!request.url_path.contains('/actuator/prometheus') && !request.url_path.contains('/com.cybereason.smd.api.CmsDistService/getContentVersion')"

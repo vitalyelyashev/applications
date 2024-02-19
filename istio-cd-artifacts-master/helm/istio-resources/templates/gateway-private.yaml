@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: private-gateway
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    istio: ingressgateway-private # use Istio default gateway implementation
+  servers:
+  - hosts:
+    {{- range .Values.privateGateway.host }}
+    - {{ . | quote}}
+    {{- end }}
+    port:
+      name: https
+      number: 443
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: {{ .Values.privateGateway.credentialName }}

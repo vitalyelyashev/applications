@@ -1,0 +1,58 @@
+gateway:
+  credentialName: "crnet"
+  host:
+  - data-epgw.cybereason.net
+  - probe-dist.cybereason.net
+  grpc:
+    enabled: false
+
+publicAuthentication:
+  issuer: "https://cybereason-us-prod.auth0.com/"
+  jwksUri: "https://cybereason-us-prod.auth0.com/.well-known/jwks.json"
+  audences:
+  - "https://so-cms-dist.cybereason.com"
+
+privateGateway:
+  credentialName: "ca-tls"
+  host:
+  - "istio-private.prod.cybereason.net"
+  - "istio-private-1.prod.cybereason.net"
+  - "istio-private-t1.prod.cybereason.net"
+
+image:
+  repository: "docker.io/istio"
+  tag: ""
+
+resources:
+  requests:
+    cpu: 1000m # default 500m
+    memory: 2048Mi # default 2048Mi
+  limits:
+    cpu: 2000m
+    memory:  2500Mi
+
+telemetry:
+  name: mesh-default
+  mode: CLIENT_AND_SERVER
+  metrics_tags:
+  - name: REQUEST_COUNT
+    mode: CLIENT_AND_SERVER
+  - name: REQUEST_DURATION
+    mode: CLIENT_AND_SERVER
+  metrics_disable:
+  - name: RESPONSE_SIZE
+    mode: CLIENT_AND_SERVER
+  - name: REQUEST_SIZE
+    mode: CLIENT_AND_SERVER
+  - name: GRPC_REQUEST_MESSAGES
+    mode: CLIENT_AND_SERVER
+  - name: GRPC_RESPONSE_MESSAGES
+    mode: CLIENT_AND_SERVER
+  - name: TCP_SENT_BYTES
+    mode: CLIENT_AND_SERVER
+  - name: TCP_RECEIVED_BYTES
+    mode: CLIENT_AND_SERVER
+  - name: TCP_OPENED_CONNECTIONS
+    mode: CLIENT_AND_SERVER
+  - name: TCP_CLOSED_CONNECTIONS
+    mode: CLIENT_AND_SERVER

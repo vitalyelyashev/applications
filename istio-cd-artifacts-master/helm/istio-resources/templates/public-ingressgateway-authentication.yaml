@@ -1,0 +1,31 @@
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: epg-ra
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+  jwtRules:
+  - forwardOriginalToken: true
+    issuer: {{ .Values.publicAuthentication.issuer }}
+    jwksUri: {{ .Values.publicAuthentication.jwksUri }}
+    audiences: 
+      {{- range .Values.publicAuthentication.audences }}
+      - {{ . | quote}}
+      {{- end }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: epg-aup
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+  rules:
+  - from:
+    - source:
+        requestPrincipals: ["*"]

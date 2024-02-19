@@ -1,0 +1,81 @@
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  name: {{ .Values.metadata.name }}
+  namespace: {{ .Values.metadata.namespace }}
+spec:
+  auth:
+    openshift: {}
+    strategy: {{ .Values.auth.strategy }}
+    openid:
+      client_id: {{ .Values.auth.openid.client_id }}
+      disable_rbac: {{ .Values.auth.openid.disable_rbac }}
+      issuer_uri: {{ .Values.auth.openid.issuer_uri }}
+  deployment:
+    accessible_namespaces:
+        - "**"
+    view_only_mode: false
+    hpa:
+      api_version: {{ .Values.deployment.hpa.api_version }}
+      # default: spec is empty
+      spec:
+        maxReplicas: {{ .Values.deployment.hpa.maxReplicas }}
+        minReplicas: {{ .Values.deployment.hpa.minReplicas }}
+        metrics:
+        - type: Resource
+          resource:
+            name: {{ .Values.deployment.hpa.metrics.resource_cpu.name }}
+            target:
+              type: {{ .Values.deployment.hpa.metrics.resource_cpu.target.type }}
+              averageUtilization: {{ .Values.deployment.hpa.metrics.resource_cpu.target.averageUtilization }}
+    #image_name: {{ .Values.deployment.image_name }}
+    #image_version: {{ .Values.deployment.image_version }}
+    ingress_enabled:
+      additional_labels: {}
+      class_name: {{ .Values.deployment.ingress_enabled.class_name }}
+      #enabled:
+      override_yaml:
+        metadata: {}
+    instance_name: {{ .Values.deployment.instance_name }}
+    logger:
+      log_format: {{ .Values.deployment.logger.log_format }}
+      log_level: {{ .Values.deployment.logger.log_level }}
+      time_field_format: {{ .Values.deployment.logger.time_field_format }}
+      sampler_rate: {{ .Values.deployment.logger.sampler_rate }}
+    resources:
+      requests:
+        cpu: {{ .Values.deployment.resources.requests.cpu }}
+        memory: {{ .Values.deployment.resources.requests.memory }}
+      limits:
+        cpu: {{ .Values.deployment.resources.limits.cpu }}
+        memory: {{ .Values.deployment.resources.limits.memory }}
+    secret_name: {{ .Values.deployment.secret_name }}
+  external_services:
+    prometheus:
+      url: {{ .Values.external_services.prometheus.url }}
+    custom_dashboards:
+      enabled: {{ .Values.external_services.custom_dashboards.enabled }}
+    istio:
+      root_namespace: {{ .Values.external_services.istio.root_namespace }}
+  kiali_feature_flags:
+    certificates_information_indicators:
+      enabled: true
+      secrets:
+      {{- range .Values.kiali_feature_flags.certificates_information_indicators.secrets }}
+      - {{ . }}
+      {{- end }}
+    clustering:
+      enabled: true
+    disabled_features: []
+    validations:
+      ignore: ["KIA1201"]
+  server:
+    port: {{ .Values.server.port }}
+    observability:
+      metrics:
+        enabled: {{ .Values.server.observability.metrics.enabled }}
+        port: {{ .Values.server.observability.metrics.port }}
+    web_root: {{ .Values.server.web_root }}
+    web_schema: {{ .Values.server.web_schema }}
+    web_port: {{ .Values.server.web_port }}
+    web_fqdn: {{ .Values.server.web_fqdn }}

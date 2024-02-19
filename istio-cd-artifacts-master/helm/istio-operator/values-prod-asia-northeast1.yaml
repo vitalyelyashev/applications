@@ -1,0 +1,25 @@
+image:
+  repository: "docker.io/istio"
+  tag: ""
+
+resources:
+  requests:
+    cpu: 1000m # default 500m
+    memory: 3072Mi # default 2048Mi
+  limits:
+    cpu: 2000m
+    memory: 3072Mi
+
+hpaSpec:
+  GWmaxReplicas: 30 # default 5
+  GWminReplicas: 14 # default 1
+  GWPrivatemaxReplicas: 5 # default 5
+  GWPrivateminReplicas: 2 # default 1
+  PilotmaxReplicas: 10 # default 5
+  PilotminReplicas: 2 # default 1
+  metrics:
+    resource:
+      AverageUtilization: 150
+      MemoryAverageUtilization: 70
+
+

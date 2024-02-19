@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kiali-vs
+  generation: 1
+  namespace: {{ .Values.namespace }}
+spec:
+  hosts:
+  - {{ .Values.server.web_fqdn }}
+  gateways:
+  - private-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/kiali"
+    route:
+    - destination:
+        port:
+          number: {{ .Values.VirtualService.port_number }}
+        host: kiali
+      weight: {{ .Values.VirtualService.weight }}
